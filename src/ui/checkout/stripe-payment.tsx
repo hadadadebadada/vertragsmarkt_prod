@@ -15,6 +15,7 @@ import { saveTaxIdAction } from "@/ui/checkout/tax-action";
 import { CountrySelect } from "@/ui/country-select";
 import { useDidUpdate } from "@/ui/hooks/lifecycle";
 import { InputWithErrors } from "@/ui/input-errors";
+import { SellExplanation } from "@/ui/products/sell-explanation";
 import {
 	AddressElement,
 	LinkAuthenticationElement,
@@ -67,13 +68,11 @@ const PaymentForm = ({
 	allProductsDigital: boolean;
 	locale: string;
 	providers: string[];
-	metadataList: Record<string, any>[];
+	metadataList: Record<string, unknown>[];
 }) => {
-
 	const includesTelefonicaProduct = providers.includes("O2");
 	const includesVodafoneProduct = providers.includes("Vodafone");
 	const includesTelekomProduct = providers.includes("Telekom");
-
 
 	const includesVerkaufen = metadataList.some((meta) => meta?.category === "verkaufen");
 	const includesKaufen = metadataList.some((meta) => meta?.category === "kaufen");
@@ -364,6 +363,7 @@ const PaymentForm = ({
 			)}
 			{readyToRender && (
 				<div>
+					{includesVerkaufen && <SellExplanation variant="compact" className="mb-4" />}
 					<label className="inline-flex items-start space-x-2">
 						<input
 							type="checkbox"
@@ -372,23 +372,34 @@ const PaymentForm = ({
 							className="mt-1"
 						/>
 						<span className="text-sm">
-							Hiermit erkläre ich, dass ich<br />
+							Hiermit erkläre ich, dass ich
+							<br />
 							<ul className="list-disc pl-5">
 								<li>
-									die <a href="https://www.vertragsmarkt.de/agb" className="text-blue-500 underline" target="_blank" rel="noopener noreferrer">
+									die{" "}
+									<a
+										href="https://www.vertragsmarkt.de/agb"
+										className="text-blue-500 underline"
+										target="_blank"
+										rel="noopener noreferrer"
+									>
 										Allgemeinen Geschäftsbedingungen der Vertragsmarkt UG (haftungsbeschränkt)
 									</a>
 								</li>
 								{includesVerkaufen && (
 									<>
-										<li>Hiermit verpflichte ich mich, die ausgewählten Verträge, an die Vertragsmarkt UG (haftungsbeschränkt) zu übergeben.</li>
+										<li>
+											Hiermit verpflichte ich mich, die ausgewählten Verträge, an die Vertragsmarkt UG
+											(haftungsbeschränkt) zu übergeben.
+										</li>
 									</>
 								)}
 
 								{includesTelefonicaProduct && includesKaufen && (
 									<>
 										<li>
-											die <a
+											die{" "}
+											<a
 												href="https://www.o2online.de/assets/blobs/agb/agb-postpaid/"
 												className="text-blue-500 underline"
 												target="_blank"
@@ -415,7 +426,8 @@ const PaymentForm = ({
 								{includesVodafoneProduct && includesKaufen && (
 									<>
 										<li>
-											die <a
+											die{" "}
+											<a
 												href="https://www.vodafone.de/media/downloads/pdf/900271_KA_21677_screen.pdf"
 												className="text-blue-500 underline"
 												target="_blank"
@@ -442,7 +454,8 @@ const PaymentForm = ({
 								{includesTelekomProduct && includesKaufen && (
 									<>
 										<li>
-											die <a
+											die{" "}
+											<a
 												href="https://www.telekom.de/dlp/agb/pdf/53750.pdf"
 												className="text-blue-500 underline"
 												target="_blank"
@@ -466,10 +479,9 @@ const PaymentForm = ({
 									</>
 								)}
 
-
-
 								<li>
-									die <a
+									die{" "}
+									<a
 										href="https://www.vertragsmarkt.de/dse"
 										className="text-blue-500 underline"
 										target="_blank"
@@ -480,7 +492,12 @@ const PaymentForm = ({
 								</li>
 							</ul>
 							Ich habe die{" "}
-							<a href="/widerruf" className="text-blue-500 underline" target="_blank" rel="noopener noreferrer">
+							<a
+								href="/widerruf"
+								className="text-blue-500 underline"
+								target="_blank"
+								rel="noopener noreferrer"
+							>
 								Widerrufsbelehrung / das Muster-Widerrufsformular
 							</a>{" "}
 							zur Kenntnis genommen.

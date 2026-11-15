@@ -69,7 +69,6 @@
 // 		return notFound();
 // 	}
 
-
 // 	const t = await getTranslations("/product.page");
 // 	const locale = await getLocale();
 
@@ -293,13 +292,15 @@ import {
 } from "@/components/ui/breadcrumb";
 import { publicUrl } from "@/env.mjs";
 import { getLocale, getTranslations } from "@/i18n/server";
+import { getMonthlyPrice } from "@/lib/monthly-payment";
 import { getRecommendedProducts } from "@/lib/search/trieve";
 import { cn, deslugify, formatMoney, formatProductName } from "@/lib/utils";
 import type { TrieveProductMetadata } from "@/scripts/upload-trieve";
-import { AddToCartButton } from "@/ui/add-to-cart-button";
 import { JsonLd, mappedProductToJsonLd } from "@/ui/json-ld";
 import { Markdown } from "@/ui/markdown";
 import { MainProductImage } from "@/ui/products/main-product-image";
+import { PaymentOptions } from "@/ui/products/payment-options";
+import { SellExplanation } from "@/ui/products/sell-explanation";
 import { StickyBottom } from "@/ui/sticky-bottom";
 import { YnsLink } from "@/ui/yns-link";
 import Image from "next/image";
@@ -347,14 +348,14 @@ export interface StripeProduct {
 	id: string;
 	object: "product";
 	active: boolean;
-	attributes: any[];
+	attributes: unknown[];
 	created: number;
 	default_price: StripePrice;
 	description: string;
-	features: any[];
+	features: unknown[];
 	images: string[];
 	livemode: boolean;
-	marketing_features: any[];
+	marketing_features: unknown[];
 	metadata: StripeProductMetadata;
 	name: string;
 	package_dimensions: null;
@@ -393,14 +394,14 @@ async function getVariantsBySlug(slug: string): Promise<StripeProduct[]> {
 		return [];
 	}
 
-	const data = await res.json();
-	//@ts-ignore
-
-	return data.data as StripeProduct[];
+	const data = (await res.json()) as { data: StripeProduct[] };
+	const variants = data.data;
+	// Order variants by contract duration (2 Monate, 3 Monate, …)
+	// (prod products have no total_months metadata, so fall back to the variant name)
+	const months = (p: StripeProduct) =>
+		Number(p.metadata.total_months) || Number(/^(\d+)\s*Monat/i.exec(p.metadata.variant ?? "")?.[1]) || 0;
+	return variants.sort((a, b) => months(a) - months(b));
 }
-
-
-
 
 /*──────────────────────────────────────────────────────────────
   generateMetadata
@@ -420,11 +421,8 @@ export const generateMetadata = async (props: {
 	console.log("Number of fetched variants:", variants.length);
 
 	// Use searchParams.variant if provided; otherwise fall back to the first variant.
-	const selectedVariant: string =
-		searchParams.variant ?? variants[0]?.metadata.variant ?? "";
-	const product = variants.find(
-		(variant) => variant.metadata.variant === selectedVariant
-	);
+	const selectedVariant: string = searchParams.variant ?? variants[0]?.metadata.variant ?? "";
+	const product = variants.find((variant) => variant.metadata.variant === selectedVariant);
 	if (!product) {
 		return notFound();
 	}
@@ -437,10 +435,7 @@ export const generateMetadata = async (props: {
 		canonical.searchParams.set("variant", selectedVariant);
 	}
 
-	const productName = formatProductName(
-		product.name,
-		product.metadata.variant ?? ""
-	);
+	const productName = formatProductName(product.name, product.metadata.variant ?? "");
 
 	return {
 		title: t("title", { productName }),
@@ -467,9 +462,7 @@ export default async function SingleProductPage(props: {
 		(searchParams.variant && variants.length > 1 && searchParams.variant) ??
 		variants[0]?.metadata.variant ??
 		"";
-	const product = variants.find(
-		(variant) => variant.metadata.variant === selectedVariant
-	);
+	const product = variants.find((variant) => variant.metadata.variant === selectedVariant);
 
 	if (!product) {
 		return notFound();
@@ -480,6 +473,18 @@ export default async function SingleProductPage(props: {
 
 	const category = product.metadata.category ?? "";
 	const images = product.images;
+	const monthlyPrice = await getMonthlyPrice(product.id);
+	const isOutOfStock = product.metadata.stock ? Number(product.metadata.stock) <= 0 : false;
+	const isSell = category === "verkaufen";
+	const totalLabel = formatMoney({
+		amount: product.default_price.unit_amount,
+		currency: product.default_price.currency,
+		locale,
+	});
+	const monthlyOption = monthlyPrice && {
+		months: monthlyPrice.months,
+		amountLabel: formatMoney({ amount: monthlyPrice.unitAmount, currency: monthlyPrice.currency, locale }),
+	};
 
 	return (
 		<article className="pb-12">
@@ -518,23 +523,20 @@ export default async function SingleProductPage(props: {
 			<StickyBottom product={product} locale={locale}>
 				<div className="mt-4 grid gap-4 lg:grid-cols-12">
 					<div className="lg:col-span-5 lg:col-start-8">
-						<h1 className="text-3xl font-bold leading-none tracking-tight text-foreground">
-							{product.name}
-						</h1>
+						<h1 className="text-3xl font-bold leading-none tracking-tight text-foreground">{product.name}</h1>
 						{product.default_price.unit_amount && (
 							<p className="mt-2 text-2xl font-medium leading-none tracking-tight text-foreground/70">
-								{formatMoney({
-									amount: product.default_price.unit_amount,
-									currency: product.default_price.currency,
-									locale,
-								})}
+								{isSell && <span className="mr-2 text-base font-normal">Ablösesumme</span>}
+								{totalLabel}
+							</p>
+						)}
+						{monthlyOption && (
+							<p className="mt-2 text-base text-foreground/70">
+								oder {monthlyOption.months} × {monthlyOption.amountLabel} monatlich
 							</p>
 						)}
 						<div className="mt-2">
-							{product.metadata.stock &&
-								Number(product.metadata.stock) <= 0 ? (
-								<div>Out of stock</div>
-							) : null}
+							{product.metadata.stock && Number(product.metadata.stock) <= 0 ? <div>Out of stock</div> : null}
 						</div>
 					</div>
 
@@ -603,7 +605,7 @@ export default async function SingleProductPage(props: {
 														href={`/product/${variant.metadata.slug}?variant=${variant.metadata.variant}`}
 														className={cn(
 															"flex cursor-pointer items-center justify-center gap-2 rounded-md border p-2 transition-colors hover:bg-neutral-100",
-															isSelected && "border-black bg-neutral-50 font-medium"
+															isSelected && "border-black bg-neutral-50 font-medium",
 														)}
 														aria-selected={isSelected}
 													>
@@ -617,11 +619,14 @@ export default async function SingleProductPage(props: {
 							</div>
 						)}
 
-						<AddToCartButton
+						{isSell && <SellExplanation totalLabel={totalLabel} monthly={monthlyOption} />}
+
+						<PaymentOptions
 							productId={product.id}
-							disabled={
-								product.metadata.stock ? Number(product.metadata.stock) <= 0 : false
-							}
+							disabled={isOutOfStock}
+							oneTimeLabel={totalLabel}
+							monthly={monthlyOption}
+							isSell={isSell}
 						/>
 					</div>
 				</div>

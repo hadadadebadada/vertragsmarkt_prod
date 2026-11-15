@@ -5,6 +5,12 @@ import { YnsLink } from "@/ui/yns-link";
 import type * as Commerce from "commerce-kit";
 import Image from "next/image";
 
+// commerce-kit strips unknown metadata (e.g. total_months), so derive it from the variant ("2 Monate")
+const monthsOf = (product: Commerce.MappedProduct) => {
+	const match = /^(\d+)\s*Monat/i.exec(product.metadata.variant ?? "");
+	return match ? Number(match[1]) : 0;
+};
+
 export const ProductList = async ({ products }: { products: Commerce.MappedProduct[] }) => {
 	const locale = await getLocale();
 
@@ -35,11 +41,23 @@ export const ProductList = async ({ products }: { products: Commerce.MappedProdu
 										<footer className="text-base font-normal text-neutral-900">
 											{product.default_price.unit_amount && (
 												<p>
+													{product.metadata.category === "verkaufen" && "Ablösesumme "}
 													{formatMoney({
 														amount: product.default_price.unit_amount,
 														currency: product.default_price.currency,
 														locale,
 													})}
+												</p>
+											)}
+											{product.default_price.unit_amount && monthsOf(product) > 0 && (
+												<p className="text-sm text-neutral-600">
+													oder {monthsOf(product)} ×{" "}
+													{formatMoney({
+														amount: Math.round(product.default_price.unit_amount / monthsOf(product)),
+														currency: product.default_price.currency,
+														locale,
+													})}{" "}
+													monatlich
 												</p>
 											)}
 										</footer>

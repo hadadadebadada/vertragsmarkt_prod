@@ -1,4 +1,5 @@
 import { env } from "@/env.mjs";
+import { ensureSubscriptionEnds } from "@/lib/monthly-payment";
 import { unpackPromise } from "@/lib/utils";
 import * as Commerce from "commerce-kit";
 import { cartMetadataSchema } from "commerce-kit/internal";
@@ -56,6 +57,13 @@ export async function POST(request: Request) {
 
 			revalidateTag(`cart-${event.data.object.id}`);
 
+			break;
+
+		case "checkout.session.completed":
+			// Monthly payment: end the subscription after `total_months` payments.
+			if (event.data.object.mode === "subscription" && typeof event.data.object.subscription === "string") {
+				await ensureSubscriptionEnds(event.data.object.subscription);
+			}
 			break;
 
 		default:

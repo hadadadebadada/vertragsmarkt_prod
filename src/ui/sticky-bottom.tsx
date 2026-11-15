@@ -14,7 +14,8 @@ export const StickyBottom = ({
 }>) => {
 	const [show, setShow] = useState(false);
 	useEffect(() => {
-		const button = document.getElementById("button-add-to-cart");
+		const button =
+			document.getElementById("product-purchase-actions") ?? document.getElementById("button-add-to-cart");
 		const observer = new IntersectionObserver(
 			([entry]) => {
 				if (entry) {
