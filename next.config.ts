@@ -26,9 +26,8 @@ const nextConfig: NextConfig = {
 	experimental: {
 		esmExternals: true,
 		scrollRestoration: true,
-		ppr: true,
+		// ppr removed: only allowed on canary; we moved to stable 15.5 for the React2Shell fixes
 		cpus: 1,
-		reactOwnerStack: true,
 		reactCompiler: true,
 		mdxRs: true,
 		inlineCss: true,
