@@ -7,7 +7,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "next dev --turbo",
-		"build": "next build",
+		"build": "node scripts/migrate.mjs && next build",
 		"start": "next start",
 		"lint": "pnpm biome check --write",
 		"test": "vitest",
