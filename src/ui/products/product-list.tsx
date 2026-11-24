@@ -1,4 +1,5 @@
 import { getLocale } from "@/i18n/server";
+import { isRetiredSellProduct } from "@/lib/marketplace-shared";
 import { formatMoney } from "@/lib/utils";
 import { JsonLd, mappedProductsToJsonLd } from "@/ui/json-ld";
 import { YnsLink } from "@/ui/yns-link";
@@ -11,8 +12,9 @@ const monthsOf = (product: Commerce.MappedProduct) => {
 	return match ? Number(match[1]) : 0;
 };
 
-export const ProductList = async ({ products }: { products: Commerce.MappedProduct[] }) => {
+export const ProductList = async ({ products: allProducts }: { products: Commerce.MappedProduct[] }) => {
 	const locale = await getLocale();
+	const products = allProducts.filter((product) => !isRetiredSellProduct(product));
 
 	return (
 		<>
@@ -41,7 +43,6 @@ export const ProductList = async ({ products }: { products: Commerce.MappedProdu
 										<footer className="text-base font-normal text-neutral-900">
 											{product.default_price.unit_amount && (
 												<p>
-													{product.metadata.category === "verkaufen" && "Ablösesumme "}
 													{formatMoney({
 														amount: product.default_price.unit_amount,
 														currency: product.default_price.currency,

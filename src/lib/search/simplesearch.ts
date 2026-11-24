@@ -1,3 +1,4 @@
+import { isRetiredSellProduct } from "@/lib/marketplace-shared";
 import type * as Commerce from "commerce-kit";
 
 const NO_MATCH = 0;
@@ -29,6 +30,7 @@ function simpleSearchMatch(query: string, value: null | undefined | string): num
 export function simpleSearch(products: Commerce.MappedProduct[], query: string) {
 	const escapedQuery = escapeRegExp(query);
 	const matches = products
+		.filter((product) => !isRetiredSellProduct(product))
 		.flatMap((product) => {
 			const fieldsWithWeights = [
 				[product.name, 1.5],

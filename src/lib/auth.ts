@@ -1,110 +1,88 @@
-"use server";
 import { type JWTPayload, SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import { type NextRequest, NextResponse } from "next/server";
 
-if (!process.env.SECRET) {
-	throw new Error("SECRET must be defined");
-}
+/**
+ * Session cookie handling. Edge-safe (used by the middleware), so it must not import the database.
+ * Deliberately NOT a "use server" module: these helpers must never be callable as server actions
+ * (an exported `encrypt` action would let anyone mint a session).
+ */
 
-const key = new TextEncoder().encode(process.env.SECRET);
-const SessionDuration = 24 * 60 * 60 * 1000;
+const SESSION_COOKIE = "session";
+const SessionDuration = 7 * 24 * 60 * 60 * 1000;
 
-interface User {
+export type SessionUser = {
+	id: string;
 	email: string;
-}
+	role: "user" | "admin";
+};
 
-interface SessionData extends JWTPayload {
-	user: User;
+export interface SessionData extends JWTPayload {
+	user: SessionUser;
 	expires: number;
 }
 
-export async function encrypt(payload: SessionData): Promise<string> {
+function getKey() {
+	if (!process.env.SECRET) {
+		throw new Error("SECRET must be defined");
+	}
+	return new TextEncoder().encode(process.env.SECRET);
+}
+
+async function encrypt(payload: SessionData): Promise<string> {
 	return await new SignJWT(payload)
 		.setProtectedHeader({ alg: "HS256" })
 		.setIssuedAt()
-		.setExpirationTime(payload.expires)
-		.sign(key);
+		.setExpirationTime(new Date(payload.expires))
+		.sign(getKey());
 }
 
-export async function decrypt(input: string): Promise<SessionData | null | undefined> {
+export async function decrypt(input: string | undefined): Promise<SessionData | null> {
+	if (!input) return null;
 	try {
-		const r = await jwtVerify(input, key, {
-			algorithms: ["HS256"],
-		});
-		return r.payload as SessionData;
-	} catch (e) {
-		if (e instanceof Error) {
-			console.log(e.message);
-		}
-	}
-}
-
-export async function login(_state: unknown, formData: FormData): Promise<{ error?: string } | undefined> {
-	"use server";
-
-	const email = formData.get("email") as string;
-	const password = formData.get("password") as string;
-
-	if (email !== process.env.EMAIL || password !== process.env.PASSWORD) {
-		return { error: "Invalid credentials" };
-	}
-
-	const expires = Date.now() + SessionDuration;
-	const session = await encrypt({ user: { email }, expires });
-
-	(await cookies()).set("session", session, {
-		expires: new Date(expires),
-		httpOnly: true,
-		secure: process.env.NODE_ENV === "production",
-		sameSite: "strict",
-	});
-
-	redirect("/orders");
-	return;
-}
-
-export async function logout() {
-	"use server";
-	(await cookies()).delete("session");
-	redirect("/login");
-}
-
-export async function auth() {
-	const session = (await cookies()).get("session")?.value;
-	if (!session) return null;
-
-	const data = await decrypt(session);
-	if (!data || data.expires < Date.now()) {
-		(await cookies()).delete("session");
+		const { payload } = await jwtVerify(input, getKey(), { algorithms: ["HS256"] });
+		const data = payload as SessionData;
+		// Sessions from the old admin-only login have no id/role
+		if (!data.user?.id || !data.user.role || data.expires < Date.now()) return null;
+		return data;
+	} catch {
 		return null;
 	}
-
-	return data;
 }
 
-export async function updateSession(request: NextRequest) {
-	const session = (await cookies()).get("session")?.value;
-	if (!session) return;
+const cookieOptions = (expires: number) => ({
+	expires: new Date(expires),
+	httpOnly: true,
+	secure: process.env.NODE_ENV === "production",
+	// lax (not strict) so the session survives the redirect back from Stripe Checkout/Onboarding
+	sameSite: "lax" as const,
+	path: "/",
+});
 
-	const data = await decrypt(session);
-	if (!data) return;
+export async function createSession(user: SessionUser) {
+	const expires = Date.now() + SessionDuration;
+	(await cookies()).set(SESSION_COOKIE, await encrypt({ user, expires }), cookieOptions(expires));
+}
 
-	if (data.expires - Date.now() < 60 * 60 * 1000) {
-		data.expires = Date.now() + SessionDuration;
+export async function deleteSession() {
+	(await cookies()).delete(SESSION_COOKIE);
+}
 
-		const res = NextResponse.next();
-		res.cookies.set({
-			name: "session",
-			value: await encrypt(data),
-			httpOnly: true,
-			secure: process.env.NODE_ENV === "production",
-			sameSite: "strict",
-			expires: new Date(data.expires),
-		});
-		return res;
+/** The signed-in user according to the session cookie (not checked against the database). */
+export async function getSession(): Promise<SessionData | null> {
+	return decrypt((await cookies()).get(SESSION_COOKIE)?.value);
+}
+
+export async function getSessionFromRequest(request: NextRequest) {
+	return decrypt(request.cookies.get(SESSION_COOKIE)?.value);
+}
+
+/** Middleware helper: extends sessions that expire within a day. */
+export async function refreshSession(session: SessionData) {
+	const res = NextResponse.next();
+	if (session.expires - Date.now() < 24 * 60 * 60 * 1000) {
+		const expires = Date.now() + SessionDuration;
+		res.cookies.set(SESSION_COOKIE, await encrypt({ user: session.user, expires }), cookieOptions(expires));
 	}
-
-	return NextResponse.next();
+	return res;
 }

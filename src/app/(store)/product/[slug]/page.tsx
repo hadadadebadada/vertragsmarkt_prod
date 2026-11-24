@@ -292,6 +292,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { publicUrl } from "@/env.mjs";
 import { getLocale, getTranslations } from "@/i18n/server";
+import { isRetiredSellProduct } from "@/lib/marketplace-shared";
 import { getMonthlyPrice } from "@/lib/monthly-payment";
 import { getRecommendedProducts } from "@/lib/search/trieve";
 import { cn, deslugify, formatMoney, formatProductName } from "@/lib/utils";
@@ -300,11 +301,10 @@ import { JsonLd, mappedProductToJsonLd } from "@/ui/json-ld";
 import { Markdown } from "@/ui/markdown";
 import { MainProductImage } from "@/ui/products/main-product-image";
 import { PaymentOptions } from "@/ui/products/payment-options";
-import { SellExplanation } from "@/ui/products/sell-explanation";
 import { StickyBottom } from "@/ui/sticky-bottom";
 import { YnsLink } from "@/ui/yns-link";
 import Image from "next/image";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next/types";
 import { Suspense } from "react";
 
@@ -422,7 +422,10 @@ export const generateMetadata = async (props: {
 
 	// Use searchParams.variant if provided; otherwise fall back to the first variant.
 	const selectedVariant: string = searchParams.variant ?? variants[0]?.metadata.variant ?? "";
-	const product = variants.find((variant) => variant.metadata.variant === selectedVariant);
+	// Products without variants have no metadata.variant: fall back to the first one
+	const product = selectedVariant
+		? variants.find((variant) => variant.metadata.variant === selectedVariant)
+		: variants[0];
 	if (!product) {
 		return notFound();
 	}
@@ -462,10 +465,16 @@ export default async function SingleProductPage(props: {
 		(searchParams.variant && variants.length > 1 && searchParams.variant) ??
 		variants[0]?.metadata.variant ??
 		"";
-	const product = variants.find((variant) => variant.metadata.variant === selectedVariant);
+	const product = selectedVariant
+		? variants.find((variant) => variant.metadata.variant === selectedVariant)
+		: variants[0];
 
 	if (!product) {
 		return notFound();
+	}
+	// Old Ablösesumme products: selling now works via the marketplace
+	if (isRetiredSellProduct(product)) {
+		redirect("/verkaufen");
 	}
 
 	const t = await getTranslations("/product.page");
@@ -475,7 +484,6 @@ export default async function SingleProductPage(props: {
 	const images = product.images;
 	const monthlyPrice = await getMonthlyPrice(product.id);
 	const isOutOfStock = product.metadata.stock ? Number(product.metadata.stock) <= 0 : false;
-	const isSell = category === "verkaufen";
 	const totalLabel = formatMoney({
 		amount: product.default_price.unit_amount,
 		currency: product.default_price.currency,
@@ -526,7 +534,6 @@ export default async function SingleProductPage(props: {
 						<h1 className="text-3xl font-bold leading-none tracking-tight text-foreground">{product.name}</h1>
 						{product.default_price.unit_amount && (
 							<p className="mt-2 text-2xl font-medium leading-none tracking-tight text-foreground/70">
-								{isSell && <span className="mr-2 text-base font-normal">Ablösesumme</span>}
 								{totalLabel}
 							</p>
 						)}
@@ -619,14 +626,11 @@ export default async function SingleProductPage(props: {
 							</div>
 						)}
 
-						{isSell && <SellExplanation totalLabel={totalLabel} monthly={monthlyOption} />}
-
 						<PaymentOptions
 							productId={product.id}
 							disabled={isOutOfStock}
 							oneTimeLabel={totalLabel}
 							monthly={monthlyOption}
-							isSell={isSell}
 						/>
 					</div>
 				</div>

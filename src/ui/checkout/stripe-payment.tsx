@@ -15,7 +15,6 @@ import { saveTaxIdAction } from "@/ui/checkout/tax-action";
 import { CountrySelect } from "@/ui/country-select";
 import { useDidUpdate } from "@/ui/hooks/lifecycle";
 import { InputWithErrors } from "@/ui/input-errors";
-import { SellExplanation } from "@/ui/products/sell-explanation";
 import {
 	AddressElement,
 	LinkAuthenticationElement,
@@ -363,7 +362,6 @@ const PaymentForm = ({
 			)}
 			{readyToRender && (
 				<div>
-					{includesVerkaufen && <SellExplanation variant="compact" className="mb-4" />}
 					<label className="inline-flex items-start space-x-2">
 						<input
 							type="checkbox"

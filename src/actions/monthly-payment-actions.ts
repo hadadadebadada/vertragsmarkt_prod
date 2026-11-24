@@ -1,8 +1,8 @@
 "use server";
 
 import { publicUrl } from "@/env.mjs";
+import { isRetiredSellProduct } from "@/lib/marketplace-shared";
 import { getMonthlyPrice, getStripe } from "@/lib/monthly-payment";
-import { SELL_EXPLANATION_SHORT } from "@/ui/products/sell-explanation";
 import { redirect } from "next/navigation";
 
 /** Starts a Stripe Checkout subscription for the monthly payment option of a variant. */
@@ -17,7 +17,7 @@ export async function startMonthlyCheckoutAction(formData: FormData) {
 		stripe.products.retrieve(productId),
 		getMonthlyPrice(productId),
 	]);
-	if (!product.active || !monthly) {
+	if (!product.active || !monthly || isRetiredSellProduct(product)) {
 		throw new Error("Monthly payment is not available for this product");
 	}
 
@@ -31,15 +31,8 @@ export async function startMonthlyCheckoutAction(formData: FormData) {
 		line_items: [{ price: monthly.priceId, quantity: 1 }],
 		locale: "de",
 		billing_address_collection: "required",
-		// "Verkaufen": make clear on the payment page that this is an Ablösesumme, not a payout
-		...(product.metadata.category === "verkaufen" && {
-			custom_text: { submit: { message: SELL_EXPLANATION_SHORT } },
-		}),
 		subscription_data: {
-			description:
-				product.metadata.category === "verkaufen"
-					? `Ablösesumme ${product.name} – max. ${monthly.months} Monatsraten, endet mit Verkauf des Vertrags`
-					: `${product.name} – ${monthly.months} Monatsraten`,
+			description: `${product.name} – ${monthly.months} Monatsraten`,
 			metadata: {
 				product_id: product.id,
 				total_months: String(monthly.months),
