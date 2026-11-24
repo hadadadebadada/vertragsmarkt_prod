@@ -7,10 +7,15 @@ import { YnsLink } from "@/ui/yns-link";
 const sections = [
 	{
 		header: "Products",
-		links: StoreConfig.categories.map(({ name, slug }) => ({
-			label: name,
-			href: `/category/${slug}`,
-		})),
+		links: [
+			...StoreConfig.categories.map(({ name, slug }) => ({
+				label: name,
+				href: `/category/${slug}`,
+			})),
+			{ label: "Marktplatz", href: "/marktplatz" },
+			{ label: "Vertrag verkaufen", href: "/verkaufen" },
+			{ label: "Mein Konto", href: "/konto" },
+		],
 	},
 	{
 		header: "Support",

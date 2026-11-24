@@ -2,7 +2,6 @@ import { Badge } from "@/components/ui/badge";
 import { getLocale } from "@/i18n/server";
 import { ensureSubscriptionEnds, getStripe } from "@/lib/monthly-payment";
 import { formatMoney, formatProductName } from "@/lib/utils";
-import { SellExplanation } from "@/ui/products/sell-explanation";
 import { YnsLink } from "@/ui/yns-link";
 import type { Metadata } from "next";
 import type Stripe from "stripe";
@@ -32,7 +31,6 @@ export default async function MonthlyOrderPage(props: {
 	const price = session.line_items?.data[0]?.price;
 	const product = price?.product as Stripe.Product | undefined;
 	const months = Number(subscription.metadata.total_months);
-	const isSell = product?.metadata.category === "verkaufen";
 	const monthly = price?.unit_amount ?? 0;
 	const currency = price?.currency ?? "eur";
 	const fmt = (amount: number) => formatMoney({ amount, currency, locale });
@@ -47,31 +45,20 @@ export default async function MonthlyOrderPage(props: {
 				</Badge>
 			</h1>
 			<p className="mt-2">Deine monatliche Zahlung wurde eingerichtet.</p>
-			{isSell && (
-				<SellExplanation
-					className="mt-6"
-					totalLabel={fmt(monthly * months)}
-					monthly={{ amountLabel: fmt(monthly), months }}
-				/>
-			)}
 
 			<dl className="mt-12 grid grid-cols-[max-content,1fr] gap-x-8 gap-y-3 text-sm">
 				<dt className="font-semibold">Produkt</dt>
 				<dd>{product ? formatProductName(product.name, product.metadata.variant) : "–"}</dd>
 				<dt className="font-semibold">Monatliche Rate</dt>
 				<dd className="tabular-nums">{fmt(monthly)}</dd>
-				<dt className="font-semibold">{isSell ? "Max. Anzahl Raten" : "Anzahl Raten"}</dt>
+				<dt className="font-semibold">Anzahl Raten</dt>
 				<dd>{months}</dd>
-				<dt className="font-semibold">{isSell ? "Ablösesumme (max.)" : "Gesamtbetrag"}</dt>
+				<dt className="font-semibold">Gesamtbetrag</dt>
 				<dd className="tabular-nums">{fmt(monthly * months)}</dd>
 				{subscription.cancel_at && (
 					<>
-						<dt className="font-semibold">{isSell ? "Zahlungen enden spätestens" : "Laufzeit"}</dt>
-						<dd>
-							{isSell
-								? date(subscription.cancel_at)
-								: `${date(subscription.start_date)} – ${date(subscription.cancel_at)}`}
-						</dd>
+						<dt className="font-semibold">Laufzeit</dt>
+						<dd>{`${date(subscription.start_date)} – ${date(subscription.cancel_at)}`}</dd>
 					</>
 				)}
 				<dt className="font-semibold">Bestellnummer</dt>

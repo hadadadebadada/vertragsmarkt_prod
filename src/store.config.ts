@@ -1,14 +1,10 @@
 // import AccessoriesImage from "@/images/accessories.jpg";
 // import ApparelImage from "@/images/apparel.jpg";
 
-import FitnessImage from "@/images/fitness.png";
 import MobileImage from "@/images/mobile.png";
 
 export const config = {
-	categories: [
-		{ name: "Gebrauchten Mobilvertrag Kaufen", slug: "kaufen", image: MobileImage },
-		{ name: "Mobilvertrag verkaufen", slug: "verkaufen", image: FitnessImage },
-	],
+	categories: [{ name: "Gebrauchten Mobilvertrag Kaufen", slug: "kaufen", image: MobileImage }],
 
 	social: {
 		x: "https://x.com/yourstore",

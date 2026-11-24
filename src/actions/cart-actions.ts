@@ -1,6 +1,7 @@
 "use server";
 
 import { clearCartCookie, getCartCookieJson, setCartCookieJson } from "@/lib/cart";
+import { isRetiredSellProduct } from "@/lib/marketplace-shared";
 import * as Commerce from "commerce-kit";
 import { revalidateTag } from "next/cache";
 
@@ -57,6 +58,11 @@ export async function addToCartAction(formData: FormData) {
 	const productId = formData.get("productId");
 	if (!productId || typeof productId !== "string") {
 		throw new Error("Invalid product ID");
+	}
+
+	const product = await Commerce.productGetById(productId);
+	if (!product || isRetiredSellProduct(product)) {
+		throw new Error("Product is not available");
 	}
 
 	const cart = await getCartFromCookiesAction();

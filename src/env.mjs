@@ -10,6 +10,10 @@ export const env = createEnv({
 		// Required in Commerce Kit
 		STRIPE_CURRENCY: z.string(),
 		STRIPE_WEBHOOK_SECRET: z.string().optional(),
+		// Webhook endpoint for "connected accounts" events (seller onboarding status)
+		STRIPE_CONNECT_WEBHOOK_SECRET: z.string().optional(),
+		// Postgres for users and marketplace contracts; optional so `next build` works without it
+		DATABASE_URL: z.string().optional(),
 
 		ENABLE_STRIPE_TAX: z
 			.string()
@@ -33,6 +37,8 @@ export const env = createEnv({
 	runtimeEnv: {
 		STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
 		STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+		STRIPE_CONNECT_WEBHOOK_SECRET: process.env.STRIPE_CONNECT_WEBHOOK_SECRET,
+		DATABASE_URL: process.env.DATABASE_URL,
 		STRIPE_CURRENCY: process.env.STRIPE_CURRENCY,
 
 		NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,

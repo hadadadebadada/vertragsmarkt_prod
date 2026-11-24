@@ -3,6 +3,7 @@ import { NavMenu } from "@/ui/nav/nav-menu";
 import { SearchNav } from "@/ui/nav/search-nav";
 import { SeoH1 } from "@/ui/seo-h1";
 import { YnsLink } from "@/ui/yns-link";
+import { UserIcon } from "lucide-react";
 //import { UserIcon } from "lucide-react";
 
 export const Nav = async () => {
@@ -20,9 +21,10 @@ export const Nav = async () => {
 					<SearchNav />
 				</div>
 				<CartSummaryNav />
-				{/* <YnsLink href="/login">
+				{/* Static link (no cookie read) so store pages stay cacheable; /konto redirects to login */}
+				<YnsLink href="/konto" aria-label="Mein Konto" className="ml-3 hidden sm:block">
 					<UserIcon className="hover:text-neutral-500" />
-				</YnsLink> */}
+				</YnsLink>
 			</div>
 		</header>
 	);

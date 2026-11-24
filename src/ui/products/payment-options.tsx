@@ -15,7 +15,6 @@ export const PaymentOptions = ({
 	disabled,
 	oneTimeLabel,
 	monthly,
-	isSell = false,
 }: {
 	productId: string;
 	disabled?: boolean;
@@ -23,18 +22,16 @@ export const PaymentOptions = ({
 	oneTimeLabel: string;
 	/** Pre-formatted monthly option, or null when the variant has no monthly price */
 	monthly: { amountLabel: string; months: number } | null;
-	/** "Verkaufen" products: the price is an Ablösesumme paid to Vertragsmarkt */
-	isSell?: boolean;
 }) => {
 	const [mode, setMode] = useState<PaymentMode>("one_time");
 
 	const options: { value: PaymentMode; title: string; detail: string }[] = [
-		{ value: "one_time", title: isSell ? "Ablösesumme auf einmal" : "Einmalzahlung", detail: oneTimeLabel },
+		{ value: "one_time", title: "Einmalzahlung", detail: oneTimeLabel },
 	];
 	if (monthly) {
 		options.push({
 			value: "monthly",
-			title: isSell ? "Ablösesumme in Monatsraten" : "Monatliche Zahlung",
+			title: "Monatliche Zahlung",
 			detail: `${monthly.amountLabel} / Monat · ${monthly.months} Monate`,
 		});
 	}
@@ -74,9 +71,7 @@ export const PaymentOptions = ({
 					<input type="hidden" name="productId" value={productId} />
 					<MonthlySubmitButton disabled={disabled} />
 					<p className="mt-2 text-xs text-neutral-500">
-						{isSell
-							? `Höchstens ${monthly.months} Raten zu je ${monthly.amountLabel} (insgesamt maximal ${oneTimeLabel}). Sobald dein Vertrag verkauft ist, enden die Zahlungen – spätestens nach ${monthly.months} Monaten.`
-							: `${monthly.months} Raten zu je ${monthly.amountLabel}, Gesamtbetrag ${oneTimeLabel}. Die Zahlung endet automatisch nach ${monthly.months} Monaten.`}
+						{`${monthly.months} Raten zu je ${monthly.amountLabel}, Gesamtbetrag ${oneTimeLabel}. Die Zahlung endet automatisch nach ${monthly.months} Monaten.`}
 					</p>
 				</form>
 			) : (

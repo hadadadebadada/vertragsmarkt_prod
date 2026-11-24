@@ -1,14 +1,23 @@
 import { publicUrl } from "@/env.mjs";
+import { listMarketContracts } from "@/lib/marketplace";
 import { deslugify } from "@/lib/utils";
+import { ContractGrid } from "@/ui/marketplace/contract-card";
 import { ProductList } from "@/ui/products/product-list";
-import { notFound } from "next/navigation";
+import { YnsLink } from "@/ui/yns-link";
+import type * as Commerce from "commerce-kit";
+import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next/types";
+
+export const dynamic = "force-dynamic";
+
+// Raw Stripe search results (expanded default_price) are used like commerce-kit products
+type CategoryProduct = Commerce.MappedProduct;
 // import fs from "fs";
 // import path from "path";
 
 // -----------------------------------------------------------------
 // Utility function: Write log entries to a file.
-const logToFile = (data: any, context: string, fileName: string = "product_logs.txt") => {
+const logToFile = (_data: unknown, context: string, fileName = "product_logs.txt") => {
 	// const logFilePath = path.join(process.cwd(), fileName);
 	// const logEntry = `\n[${new Date().toISOString()}] ${context}:\n${JSON.stringify(data, null, 2)}\n`;
 	// fs.appendFile(logFilePath, logEntry, (err) => {
@@ -19,8 +28,8 @@ const logToFile = (data: any, context: string, fileName: string = "product_logs.
 // -----------------------------------------------------------------
 // Fetch all products for a given category using Stripe’s Search API.
 // Uses the "page" parameter for pagination. Logs errors and each batch.
-const fetchAllProducts = async (category: string): Promise<any[]> => {
-	let allProducts: any[] = [];
+const fetchAllProducts = async (category: string): Promise<CategoryProduct[]> => {
+	let allProducts: CategoryProduct[] = [];
 	let nextPage: string | undefined = undefined;
 	let batchNumber = 1;
 	// Build the search query string.
@@ -54,7 +63,7 @@ const fetchAllProducts = async (category: string): Promise<any[]> => {
 				logToFile(
 					{ status: res.status, statusText: res.statusText, body: errorBody },
 					`Batch #${batchNumber} - Stripe API request failed`,
-					`stripe_error_log_batch_${batchNumber}.txt`
+					`stripe_error_log_batch_${batchNumber}.txt`,
 				);
 				throw new Error(`Stripe API request failed: ${res.statusText}`);
 			}
@@ -64,7 +73,7 @@ const fetchAllProducts = async (category: string): Promise<any[]> => {
 			logToFile(
 				json,
 				`Batch #${batchNumber} (page cursor: ${nextPage || "none"}) - Full Response`,
-				`product_logs_batch_${batchNumber}.txt`
+				`product_logs_batch_${batchNumber}.txt`,
 			);
 
 			// Append this batch of products.
@@ -79,7 +88,7 @@ const fetchAllProducts = async (category: string): Promise<any[]> => {
 			logToFile(
 				error,
 				`Batch #${batchNumber} encountered an exception`,
-				`stripe_exception_log_batch_${batchNumber}.txt`
+				`stripe_exception_log_batch_${batchNumber}.txt`,
 			);
 			throw error;
 		}
@@ -92,7 +101,7 @@ const fetchAllProducts = async (category: string): Promise<any[]> => {
 
 // -----------------------------------------------------------------
 // Deduplicate products by product name so that each name appears only once.
-const deduplicateProducts = (products: any[]): any[] => {
+const deduplicateProducts = (products: CategoryProduct[]): CategoryProduct[] => {
 	const seenNames = new Set();
 	return products.filter((product) => {
 		if (seenNames.has(product.name)) {
@@ -113,7 +122,7 @@ export const generateMetadata = async (props: {
 	const products = await fetchAllProducts(params.slug);
 	const uniqueProducts = deduplicateProducts(products);
 
-	if (uniqueProducts.length === 0) {
+	if (uniqueProducts.length === 0 && params.slug !== "kaufen" && params.slug !== "verkaufen") {
 		return notFound();
 	}
 	// Optionally log the deduplicated products.
@@ -132,10 +141,25 @@ export default async function CategoryPage(props: {
 	params: Promise<{ slug: string }>;
 }) {
 	const params = await props.params;
-	const products = await fetchAllProducts(params.slug);
+	// Selling now happens on the marketplace (old Ablösesumme products are retired)
+	if (params.slug === "verkaufen") {
+		redirect("/verkaufen");
+	}
+	const isBuy = params.slug === "kaufen";
+	const [products, marketContracts] = await Promise.all([
+		fetchAllProducts(params.slug),
+		// The marketplace section is optional here: if the database is unavailable (e.g. not
+		// configured yet), still show the shop products instead of failing the whole page.
+		isBuy
+			? listMarketContracts(12).catch((error: unknown) => {
+					console.error("Marketplace contracts unavailable:", error);
+					return [];
+				})
+			: Promise.resolve([]),
+	]);
 	const uniqueProducts = deduplicateProducts(products);
 
-	if (uniqueProducts.length === 0) {
+	if (uniqueProducts.length === 0 && marketContracts.length === 0) {
 		return notFound();
 	}
 	logToFile(uniqueProducts, "CategoryPage - Unique Products", "product_logs_CategoryPage.txt");
@@ -145,7 +169,18 @@ export default async function CategoryPage(props: {
 			<h1 className="text-3xl font-bold leading-none tracking-tight text-foreground">
 				{deslugify(params.slug)}
 			</h1>
-			<ProductList products={uniqueProducts} />
+			{marketContracts.length > 0 && (
+				<section className="mt-6">
+					<div className="flex items-baseline justify-between gap-4">
+						<h2 className="text-xl font-semibold">Von privat angeboten</h2>
+						<YnsLink href="/marktplatz" className="text-sm underline">
+							Alle Angebote
+						</YnsLink>
+					</div>
+					<ContractGrid contracts={marketContracts} />
+				</section>
+			)}
+			{uniqueProducts.length > 0 && <ProductList products={uniqueProducts} />}
 		</main>
 	);
 }

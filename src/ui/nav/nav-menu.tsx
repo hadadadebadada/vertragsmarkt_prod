@@ -11,10 +11,8 @@ const links = [
 		label: name,
 		href: `/category/${slug}`,
 	})),
-	// {
-	// 	label: "Digital",
-	// 	href: "/category/digital",
-	// },
+	{ label: "Marktplatz", href: "/marktplatz" },
+	{ label: "Vertrag verkaufen", href: "/verkaufen" },
 ];
 
 export const NavMenu = () => {
@@ -35,10 +33,9 @@ export const NavMenu = () => {
 				</ul>
 			</div>
 			<div className="sm:hidden flex items-center">
-
 				<NavMobileMenu>
 					<ul className="flex pb-8 flex-col items-stretch justify-center gap-x-1">
-						{links.map((link) => (
+						{[...links, { label: "Mein Konto", href: "/konto" }].map((link) => (
 							<li key={link.href}>
 								<Link
 									href={link.href}
