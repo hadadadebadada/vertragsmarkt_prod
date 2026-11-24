@@ -148,7 +148,14 @@ export default async function CategoryPage(props: {
 	const isBuy = params.slug === "kaufen";
 	const [products, marketContracts] = await Promise.all([
 		fetchAllProducts(params.slug),
-		isBuy ? listMarketContracts(12) : Promise.resolve([]),
+		// The marketplace section is optional here: if the database is unavailable (e.g. not
+		// configured yet), still show the shop products instead of failing the whole page.
+		isBuy
+			? listMarketContracts(12).catch((error: unknown) => {
+					console.error("Marketplace contracts unavailable:", error);
+					return [];
+				})
+			: Promise.resolve([]),
 	]);
 	const uniqueProducts = deduplicateProducts(products);
 
